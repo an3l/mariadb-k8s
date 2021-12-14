@@ -63,8 +63,14 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to fetch MariaDB")
 		return ctrl.Result{}, err
 	}
+	app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
+	if err := r.Status().Update(ctx, &app); err != nil {
+		log.Error(err, "unable to update the variable status")
+		return ctrl.Result{}, err
+	}
 
-	log.Info("Reconciled MariaDB kind", "mariadb", app.Name)
+	log.Info("Reconciled MariaDB kind", "mariadb", app.Name, "status", app.Status)
+
 	return ctrl.Result{}, nil
 }
 

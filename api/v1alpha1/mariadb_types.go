@@ -25,21 +25,69 @@ import (
 
 // MariaDBSpec defines the desired state of MariaDB
 type MariaDBSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Size is the size of the deployment
+	// +optional
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=4
+	Size int32 `json:"size"`
 
-	// Foo is an example field of MariaDB. Edit mariadb_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Database additional user details (base64 encoded)
+	// +kubebuilder:validation:Required
+	Username string `json:"username"`
+
+	// Database additional user password (base64 encoded)
+	// +kubebuilder:validation:Required
+	Password string `json:"password"`
+
+	// New Database name
+	// +kubebuilder:validation:Required
+	Database string `json:"database"`
+
+	// Root user password
+	// +kubebuilder:validation:Required
+	Rootpwd string `json:"rootpwd"`
+
+	// Image name with version
+	// +kubebuilder:validation:Required
+	Image string `json:"image"`
+
+	// Database storage Path
+	// +kubebuilder:validation:Required
+	DataStoragePath string `json:"dataStoragePath"`
+
+	// Database storage Size (Ex. 1Gi, 100Mi)
+	// +optional
+	DataStorageSize string `json:"dataStorageSize"`
+
+	// Port number exposed for Database service
+	// +optional
+	// +kubebuilder:default=3306
+	// +kubebuilder:validation:Minimum=0
+	Port int32 `json:"port"`
 }
+
+type StatusPhase string
+
+const (
+	RunningStatusPhase StatusPhase = "RUNNING"
+	BootstrapingStatusPhase StatusPhase = "BOOTSTRAP"
+	ErrorStatusPhase   StatusPhase = "ERROR"
+)
 
 // MariaDBStatus defines the observed state of MariaDB
 type MariaDBStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	CurrentReplicas *int32      `json:"currentReplicas,omitempty"` // If it's nil, it is unset, we'll use a default. If it is 0 than it is set to 0
+	DesiredReplicas int32       `json:"desiredReplicas"` // 0 is the same as unset (no value) and default will be applied even if user applies 0.
+	LastMessage     string      `json:"lastMessage"`
+	DbState           StatusPhase `json:"dbState"`
+
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:printcolumn:priority=0,name=MariaDB State,type=string,JSONPath=".status.dbState",description="State of the MariaDB instance",format=""
+// +kubebuilder:printcolumn:priority=0,name=Port,type=string,JSONPath=".spec.port",description="Port of the MariaDB instance",format=""
 
 // MariaDB is the Schema for the mariadbs API
 type MariaDB struct {

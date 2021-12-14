@@ -16,7 +16,16 @@ spec:
     singular: mariadb
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: State of the MariaDB instance
+      jsonPath: .status.dbState
+      name: MariaDB State
+      type: string
+    - description: Port of the MariaDB instance
+      jsonPath: .spec.port
+      name: Port
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: MariaDB is the Schema for the mariadbs API
@@ -36,13 +45,64 @@ spec:
           spec:
             description: MariaDBSpec defines the desired state of MariaDB
             properties:
-              foo:
-                description: Foo is an example field of MariaDB. Edit mariadb_types.go
-                  to remove/update
+              dataStoragePath:
+                description: Database storage Path
                 type: string
+              dataStorageSize:
+                description: Database storage Size (Ex. 1Gi, 100Mi)
+                type: string
+              database:
+                description: New Database name
+                type: string
+              image:
+                description: Image name with version
+                type: string
+              password:
+                description: Database additional user password (base64 encoded)
+                type: string
+              port:
+                default: 3306
+                description: Port number exposed for Database service
+                format: int32
+                minimum: 0
+                type: integer
+              rootpwd:
+                description: Root user password
+                type: string
+              size:
+                description: Size is the size of the deployment
+                format: int32
+                maximum: 4
+                minimum: 1
+                type: integer
+              username:
+                description: Database additional user details (base64 encoded)
+                type: string
+            required:
+            - dataStoragePath
+            - database
+            - image
+            - password
+            - rootpwd
+            - username
             type: object
           status:
             description: MariaDBStatus defines the observed state of MariaDB
+            properties:
+              currentReplicas:
+                format: int32
+                type: integer
+              dbState:
+                type: string
+              desiredReplicas:
+                format: int32
+                type: integer
+              lastMessage:
+                type: string
+            required:
+            - dbState
+            - desiredReplicas
+            - lastMessage
             type: object
         type: object
     served: true

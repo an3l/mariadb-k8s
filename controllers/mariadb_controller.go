@@ -19,38 +19,52 @@ package controllers
 import (
 	"context"
 
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	mariak8gv1alpha1 "github.com/mariadb/mariadb.org-tools/mariadb-operator/api/v1alpha1"
 )
+
+func ignoreNotFound(err error) error {
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
 
 // MariaDBReconciler reconciles a MariaDB object
 type MariaDBReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 //+kubebuilder:rbac:groups=mariak8g.mariadb.org,resources=mariadbs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=mariak8g.mariadb.org,resources=mariadbs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=mariak8g.mariadb.org,resources=mariadbs/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the MariaDB object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
 
-	// your logic here
+	log := r.Log.WithValues("MariaDB: ", req.NamespacedName)
 
+	var app mariak8gv1alpha1.MariaDB // fetch resource
+	log.Info("Reconciling MariaDB kind", "mariadb", app.Name)
+
+	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
+		// it might be not found if this is a delete request
+		if ignoreNotFound(err) == nil {
+			log.Info("Reconciled MariaDB kind after delete")
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "unable to fetch MariaDB")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Reconciled MariaDB kind", "mariadb", app.Name)
 	return ctrl.Result{}, nil
 }
 

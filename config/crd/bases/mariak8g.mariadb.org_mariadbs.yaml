@@ -62,9 +62,7 @@ spec:
                 type: string
               port:
                 default: 3306
-                description: Port number exposed for Database service
                 format: int32
-                minimum: 0
                 type: integer
               rootpwd:
                 description: Root user password

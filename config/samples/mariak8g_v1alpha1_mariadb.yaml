@@ -3,4 +3,11 @@ kind: MariaDB
 metadata:
   name: mariadb-sample
 spec:
-  # Add fields here
+  # Add required fields:
+  dataStoragePath: "/tmp/datadir"
+  database: "testDB-operator"
+  image: "docker-image"
+  password: "test!123"
+  rootpwd: "root!123"
+  username: "anel"
+  

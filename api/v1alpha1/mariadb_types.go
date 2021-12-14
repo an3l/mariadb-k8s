@@ -63,25 +63,24 @@ type MariaDBSpec struct {
 	// Port number exposed for Database service
 	// +optional
 	// +kubebuilder:default=3306
-	// +kubebuilder:validation:Minimum=0
+
 	Port int32 `json:"port"`
 }
 
 type StatusPhase string
 
 const (
-	RunningStatusPhase StatusPhase = "RUNNING"
+	RunningStatusPhase      StatusPhase = "RUNNING"
 	BootstrapingStatusPhase StatusPhase = "BOOTSTRAP"
-	ErrorStatusPhase   StatusPhase = "ERROR"
+	ErrorStatusPhase        StatusPhase = "ERROR"
 )
 
 // MariaDBStatus defines the observed state of MariaDB
 type MariaDBStatus struct {
 	CurrentReplicas *int32      `json:"currentReplicas,omitempty"` // If it's nil, it is unset, we'll use a default. If it is 0 than it is set to 0
-	DesiredReplicas int32       `json:"desiredReplicas"` // 0 is the same as unset (no value) and default will be applied even if user applies 0.
+	DesiredReplicas int32       `json:"desiredReplicas"`           // 0 is the same as unset (no value) and default will be applied even if user applies 0.
 	LastMessage     string      `json:"lastMessage"`
-	DbState           StatusPhase `json:"dbState"`
-
+	DbState         StatusPhase `json:"dbState"`
 }
 
 //+kubebuilder:object:root=true

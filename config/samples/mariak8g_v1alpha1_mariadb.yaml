@@ -1,0 +1,6 @@
+apiVersion: mariak8g.mariadb.org/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb-sample
+spec:
+  # Add fields here

@@ -20,9 +20,10 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	// apps "k8s.io/api/apps/v1"  // go get 
-	apps "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -66,24 +67,78 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
+
+	// create or update the deployment
+	depl := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			// we'll make things simple by matching name to the name of our mariadb-sample
+			Name:      app.Name + "-server",
+			Namespace: app.Namespace,
+		},
+	}
+
+	if op, err := ctrl.CreateOrUpdate(ctx, r.Client, depl, func() error {
+		// Deployment selector is immutable so we set this value only if
+		// a new object is going to be created
+		if depl.ObjectMeta.CreationTimestamp.IsZero() {
+			depl.Spec.Selector = &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "bar"},
+			}
+		}
+
+		// update the Deployment pod template
+		depl.Spec.Template = core.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Spec: core.PodSpec{
+				Containers: []core.Container{
+					{
+						Name:  "busybox",
+						Image: "busybox",
+					},
+				},
+			},
+		}
+
+		return nil
+	}); err != nil {
+		log.Info("Unable to ensure deployment is correct!")
+		if err := r.Status().Update(ctx, &app); err != nil {
+			log.Error(err, "unable to update the variable status")
+			return ctrl.Result{}, err
+		}
+	} else {
+		log.Info("Deployment successfully reconciled", "operation", op)
+	}
+
 	if err := r.Status().Update(ctx, &app); err != nil {
 		log.Error(err, "unable to update the variable status")
 		return ctrl.Result{}, err
 	}
-	
-	// create or update the deployment
-	depl := &apps.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			// we'll make things simple by matching name to the name of our mariadb-sample
-			Name:      req.Name,
-			Namespace: req.Namespace,
-		},
-	}
-	
 
 	log.Info("Reconciled MariaDB kind", "mariadb", app.Name, "status", app.Status)
 
 	return ctrl.Result{}, nil
+}
+
+func setEnv(cont *core.Container, key, val string) {
+	var envVar *core.EnvVar
+	for i, iterVar := range cont.Env {
+		if iterVar.Name == key {
+			envVar = &cont.Env[i] // index to avoid capturing the iteration variable
+			break
+		}
+	}
+	if envVar == nil {
+		cont.Env = append(cont.Env, core.EnvVar{
+			Name: key,
+		})
+		envVar = &cont.Env[len(cont.Env)-1]
+	}
+	envVar.Value = val
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -29,7 +29,7 @@ type MariaDBSpec struct {
 	// +optional
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=4
-	Replicas *int32 `json:"size"`
+	Replicas *int32 `json:"replicas"`
 
 	// Database additional user details (base64 encoded)
 	// +kubebuilder:validation:Required
@@ -48,8 +48,13 @@ type MariaDBSpec struct {
 	Rootpwd string `json:"rootpwd"`
 
 	// Image name with version
-	// +kubebuilder:validation:Required
+	// +optional
 	Image string `json:"image"`
+
+	// Image version (latest is 10.6, so let's have it as latest)
+	// +optional
+	// +kubebuilder:default="10.6"
+	ImageVersion string `json:"imageVersion"`
 
 	// Database storage Path
 	// +kubebuilder:validation:Required

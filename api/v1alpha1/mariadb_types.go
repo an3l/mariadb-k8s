@@ -25,12 +25,11 @@ import (
 
 // MariaDBSpec defines the desired state of MariaDB
 type MariaDBSpec struct {
-	// Size is the size of the deployment
+
 	// +optional
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
 	// +kubebuilder:validation:Maximum=4
-	Size int32 `json:"size"`
+	Replicas *int32 `json:"size"`
 
 	// Database additional user details (base64 encoded)
 	// +kubebuilder:validation:Required

@@ -68,10 +68,9 @@ spec:
                 description: Root user password
                 type: string
               size:
-                description: Size is the size of the deployment
+                default: 1
                 format: int32
                 maximum: 4
-                minimum: 1
                 type: integer
               username:
                 description: Database additional user details (base64 encoded)

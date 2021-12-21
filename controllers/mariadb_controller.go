@@ -21,6 +21,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	// apps "k8s.io/api/apps/v1"  // go get 
+	apps "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -68,6 +70,16 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to update the variable status")
 		return ctrl.Result{}, err
 	}
+	
+	// create or update the deployment
+	depl := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			// we'll make things simple by matching name to the name of our mariadb-sample
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
+	}
+	
 
 	log.Info("Reconciled MariaDB kind", "mariadb", app.Name, "status", app.Status)
 

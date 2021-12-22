@@ -57,6 +57,10 @@ spec:
               image:
                 description: Image name with version
                 type: string
+              imageVersion:
+                default: "10.6"
+                description: Image version (latest is 10.6, so let's have it as latest)
+                type: string
               password:
                 description: Database additional user password (base64 encoded)
                 type: string
@@ -64,21 +68,20 @@ spec:
                 default: 3306
                 format: int32
                 type: integer
-              rootpwd:
-                description: Root user password
-                type: string
-              size:
+              replicas:
                 default: 1
                 format: int32
                 maximum: 4
                 type: integer
+              rootpwd:
+                description: Root user password
+                type: string
               username:
                 description: Database additional user details (base64 encoded)
                 type: string
             required:
             - dataStoragePath
             - database
-            - image
             - password
             - rootpwd
             - username

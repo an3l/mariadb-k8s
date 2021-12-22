@@ -20,9 +20,9 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	// apps "k8s.io/api/apps/v1"  // go get 
-	apps "k8s.io/api/core/v1"
+	// apps "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -70,16 +70,19 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to update the variable status")
 		return ctrl.Result{}, err
 	}
-	
-	// create or update the deployment
-	depl := &apps.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			// we'll make things simple by matching name to the name of our mariadb-sample
-			Name:      req.Name,
-			Namespace: req.Namespace,
-		},
+
+	deployment, err := r.desiredDeployment(app)
+	// return if there is an error
+	if err != nil {
+		return ctrl.Result{}, err
 	}
-	
+
+	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
+
+	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	log.Info("Reconciled MariaDB kind", "mariadb", app.Name, "status", app.Status)
 
@@ -90,5 +93,6 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *MariaDBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mariak8gv1alpha1.MariaDB{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }

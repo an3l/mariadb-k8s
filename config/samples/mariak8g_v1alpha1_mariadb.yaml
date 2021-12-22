@@ -6,8 +6,11 @@ spec:
   # Add required fields:
   dataStoragePath: "/tmp/datadir"
   database: "testDB-operator"
-  image: "docker-image"
-  password: "test!123"
-  rootpwd: "root!123"
-  username: "anel"
-  
+  password: "my_cool_secret"
+  rootpwd: "my-secret-pw"
+  username: "example-user"
+
+  # Optional fields
+  replicas: 2
+  imageVersion: "10.6"
+  image: "quay.io/mariadb-foundation/mariadb-devel:10.5"

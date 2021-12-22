@@ -21,8 +21,8 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	// apps "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -66,13 +66,14 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
-	if err := r.Status().Update(ctx, &app); err != nil {
-		log.Error(err, "unable to update the variable status")
+	deployment, err := r.desiredDeployment(app)
+	// return if there is an error during deployment start
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	deployment, err := r.desiredDeployment(app)
-	// return if there is an error
+	svc, err := r.desiredService(app)
+	// return if there is an error during service start
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -81,6 +82,16 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
 	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	err = r.Patch(ctx, &svc, client.Apply, applyOpts...)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.Status().Update(ctx, &app); err != nil {
+		log.Error(err, "unable to update the variable status")
 		return ctrl.Result{}, err
 	}
 
@@ -93,6 +104,7 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *MariaDBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mariak8gv1alpha1.MariaDB{}).
+		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }

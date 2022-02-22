@@ -18,13 +18,21 @@ spec:
   versions:
   - additionalPrinterColumns:
     - description: State of the MariaDB instance
-      jsonPath: .status.dbState
+      jsonPath: .status.showState
       name: MariaDB State
       type: string
     - description: Port of the MariaDB instance
       jsonPath: .spec.port
       name: Port
       type: string
+    - description: Image of the MariaDB instance
+      jsonPath: .spec.image
+      name: Image
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -98,6 +106,9 @@ spec:
                 format: int32
                 type: integer
               lastMessage:
+                type: string
+              showState:
+                default: NOT STARTED
                 type: string
             required:
             - dbState

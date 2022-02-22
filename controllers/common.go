@@ -33,7 +33,7 @@ func (r *MariaDBReconciler) desiredDeployment(database mariak8gv1alpha1.MariaDB)
 	depl := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{APIVersion: appsv1.SchemeGroupVersion.String(), Kind: "Deployment"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      database.Name + "-server",
+			Name:      database.Name + "-server-deployment",
 			Namespace: database.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -51,11 +51,12 @@ func (r *MariaDBReconciler) desiredDeployment(database mariak8gv1alpha1.MariaDB)
 							Name:  "mariadb",
 							Image: mariaImage,
 							Env: []corev1.EnvVar{
-								{Name: "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD", Value: "1"},
+								{Name: "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD", Value: "0"},
 								// root password should be set from secret - test
 								{Name: "MARIADB_ROOT_PASSWORD", Value: database.Spec.Rootpwd},
 								{Name: "MARIADB_USER", Value: database.Spec.Username},
 								{Name: "MARIADB_PASSWORD", Value: database.Spec.Password},
+								{Name: "MARIADB_DATABASE", Value: database.Spec.Database},
 							},
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: mariaPort, Name: "mariadb-port", Protocol: "TCP"},
@@ -79,7 +80,7 @@ func (r *MariaDBReconciler) desiredService(database mariak8gv1alpha1.MariaDB) (c
 	svc := corev1.Service{
 		TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      database.Name,
+			Name:      database.Name + "-server-service",
 			Namespace: database.Namespace,
 		},
 		Spec: corev1.ServiceSpec{

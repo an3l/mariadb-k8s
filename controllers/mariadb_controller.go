@@ -65,8 +65,13 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to fetch MariaDB")
 		return ctrl.Result{}, err
 	}
-	app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
+
 	deployment, err := r.desiredDeployment(app)
+	if err == nil {
+		app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
+		app.Status.ShowState = string(app.Status.DbState)
+	}
+
 	// return if there is an error during deployment start
 	if err != nil {
 		return ctrl.Result{}, err

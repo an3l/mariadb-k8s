@@ -85,12 +85,19 @@ type MariaDBStatus struct {
 	DesiredReplicas int32       `json:"desiredReplicas"`           // 0 is the same as unset (no value) and default will be applied even if user applies 0.
 	LastMessage     string      `json:"lastMessage"`
 	DbState         StatusPhase `json:"dbState"`
+
+	// +optional
+	// +kubebuilder:default="NOT STARTED"
+
+	ShowState string `json:"showState"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-// +kubebuilder:printcolumn:priority=0,name=MariaDB State,type=string,JSONPath=".status.dbState",description="State of the MariaDB instance",format=""
+// +kubebuilder:printcolumn:priority=0,name=MariaDB State,type=string,JSONPath=".status.showState",description="State of the MariaDB instance",format=""
 // +kubebuilder:printcolumn:priority=0,name=Port,type=string,JSONPath=".spec.port",description="Port of the MariaDB instance",format=""
+// +kubebuilder:printcolumn:priority=1,name=Image,type=string,JSONPath=".spec.image",description="Image of the MariaDB instance",format=""
+// +kubebuilder:printcolumn:priority=0,name=Age, type=date,JSONPath=".metadata.creationTimestamp"
 
 // MariaDB is the Schema for the mariadbs API
 type MariaDB struct {

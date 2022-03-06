@@ -67,8 +67,17 @@ type MariaDBSpec struct {
 	// Port number exposed for Database service
 	// +optional
 	// +kubebuilder:default=3306
-
 	Port int32 `json:"port"`
+
+	// InitialDelaySeconds for livenessProbe
+	// +optional
+	// +kubebuilder:default=5
+	InitialDelaySeconds int32 `json:"initialDelaySeconds"`
+
+	// PeriodSeconds for livenessProbe
+	// +optional
+	// +kubebuilder:default=5
+	PeriodSeconds int32 `json:"periodSeconds"`
 }
 
 type StatusPhase string

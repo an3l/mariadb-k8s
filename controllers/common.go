@@ -57,11 +57,24 @@ func (r *MariaDBReconciler) desiredDeployment(database mariak8gv1alpha1.MariaDB)
 								{Name: "MARIADB_USER", Value: database.Spec.Username},
 								{Name: "MARIADB_PASSWORD", Value: database.Spec.Password},
 								{Name: "MARIADB_DATABASE", Value: database.Spec.Database},
+								{Name: "MARIADB_MYSQL_LOCALHOST_USER", Value: "1"},
 							},
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: mariaPort, Name: "mariadb-port", Protocol: "TCP"},
 							},
-							//Resources:
+							StartupProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									Exec: &corev1.ExecAction{
+										Command: []string{
+											"/usr/local/bin/healthcheck.sh",
+											"--su=mysql",
+											"--innodb_initialized",
+										},
+									},
+								},
+								InitialDelaySeconds: database.Spec.InitialDelaySeconds,
+								PeriodSeconds:       database.Spec.PeriodSeconds,
+							},
 						},
 					},
 				},

@@ -13,4 +13,6 @@ spec:
   # Optional fields
   replicas: 2
   imageVersion: "10.6"
-  image: "quay.io/mariadb-foundation/mariadb-devel:10.5"
+  image: "quay.io/mariadb-foundation/mariadb-devel:10.6"
+  initialDelaySeconds: 10
+  periodSeconds: 5

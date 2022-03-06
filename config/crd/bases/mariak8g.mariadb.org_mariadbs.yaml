@@ -69,11 +69,22 @@ spec:
                 default: "10.6"
                 description: Image version (latest is 10.6, so let's have it as latest)
                 type: string
+              initialDelaySeconds:
+                default: 5
+                description: InitialDelaySeconds for livenessProbe
+                format: int32
+                type: integer
               password:
                 description: Database additional user password (base64 encoded)
                 type: string
+              periodSeconds:
+                default: 5
+                description: PeriodSeconds for livenessProbe
+                format: int32
+                type: integer
               port:
                 default: 3306
+                description: Port number exposed for Database service
                 format: int32
                 type: integer
               replicas:

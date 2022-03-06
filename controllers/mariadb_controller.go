@@ -70,6 +70,10 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err == nil {
 		app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
 		app.Status.ShowState = string(app.Status.DbState)
+		// Add more information about deployment status (observed empty?)
+		var deploymentStatus appsv1.DeploymentStatus
+		deploymentStatus = deployment.Status
+		log.Info("Checking the deployment status", "mariadb-deployment-status", deploymentStatus)
 	}
 
 	// return if there is an error during deployment start

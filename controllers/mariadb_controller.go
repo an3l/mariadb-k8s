@@ -65,7 +65,31 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to fetch MariaDB")
 		return ctrl.Result{}, err
 	}
+	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
 
+	// First create the secret in case root password is not set
+	var root_secret *corev1.Secret = nil
+	if app.Spec.Rootpwd == "" && app.Status.SecretSet == 0 {
+		log.Info("No root password set. Create the secret!")
+		root_secret1, err_secret := r.createRootSecret(&app, "mysecret")
+		if err_secret != nil {
+			log.Info("Root secret cannot be created")
+			return ctrl.Result{}, err_secret
+		}
+		log.Info("Secret created !", "mariadb-root-password: ", root_secret1)
+		root_secret = &root_secret1
+	} else {
+		log.Info("Secret exists! Are we doing edit of secret? What is the API to check this?")
+	}
+
+	// This part is needed to be outside of reconciliation because of need to edit the secrets
+	if root_secret != nil {
+		err1 := r.Patch(ctx, root_secret, client.Apply, applyOpts...)
+		if err1 != nil {
+			return ctrl.Result{}, err1
+		}
+	}
+	// Create the deployment
 	deployment, err := r.desiredDeployment(app)
 	if err == nil {
 		app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
@@ -86,8 +110,6 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
 
 	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
 	if err != nil {
@@ -115,5 +137,6 @@ func (r *MariaDBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&mariak8gv1alpha1.MariaDB{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }

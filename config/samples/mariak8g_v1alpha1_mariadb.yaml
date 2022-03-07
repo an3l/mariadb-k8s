@@ -7,7 +7,7 @@ spec:
   dataStoragePath: "/tmp/datadir"
   database: "testDB-operator"
   password: "my_cool_secret"
-  rootpwd: "my-secret-pw"
+  #rootpwd: "my-secret-pw"
   username: "example-user"
 
   # Optional fields

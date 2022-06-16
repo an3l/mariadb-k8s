@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	mariak8gv1alpha1 "github.com/mariadb/mariadb.org-tools/mariadb-operator/api/v1alpha1"
+	"github.com/mariadb/mariadb.org-tools/mariadb-operator/pkg/k8s"
 )
 
 func ignoreNotFound(err error) error {
@@ -50,59 +51,89 @@ type MariaDBReconciler struct {
 //+kubebuilder:rbac:groups=mariak8g.mariadb.org,resources=mariadbs/finalizers,verbs=update
 
 func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
-	log := r.Log.WithValues("MariaDB: ", req.NamespacedName)
-
+	// Create the object to reconcile
 	var app mariak8gv1alpha1.MariaDB // fetch resource
-	log.Info("Reconciling MariaDB kind", "mariadb", app.Name)
+	log := r.Log.WithValues("MariaDB: ", req.NamespacedName)
+	ctrl_res := ctrl.Result{}
 
+	log.Info("Reconciling MariaDB kind", "mariadb", app.Name)
+	// First we should set default versions TODO
 	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
 		// it might be not found if this is a delete request
 		if ignoreNotFound(err) == nil {
 			log.Info("Reconciled MariaDB kind after delete")
-			return ctrl.Result{}, nil
+			return ctrl_res, nil
 		}
 		log.Error(err, "unable to fetch MariaDB")
-		return ctrl.Result{}, err
+		return ctrl_res, err
 	}
-
-	deployment, err := r.desiredDeployment(app)
-	if err == nil {
-		app.Status.DbState = mariak8gv1alpha1.RunningStatusPhase
-		app.Status.ShowState = string(app.Status.DbState)
-	}
-
-	// return if there is an error during deployment start
+	// Second call function to reconcile all resources
+	deployment, err := r.reconcile_deployment(ctx, app, log)
 	if err != nil {
-		return ctrl.Result{}, err
+		log.Error(err, " failed to reconcile deployments!")
+		return ctrl_res, err
 	}
 
-	svc, err := r.desiredService(app)
+	svc, err := r.reconcile_service(ctx, app, log)
 	// return if there is an error during service start
 	if err != nil {
-		return ctrl.Result{}, err
+		log.Error(err, " failed to reconcile service!")
+		return ctrl_res, err
 	}
 
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
 
 	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl_res, err
 	}
 
 	err = r.Patch(ctx, &svc, client.Apply, applyOpts...)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl_res, err
 	}
 
 	if err := r.Status().Update(ctx, &app); err != nil {
 		log.Error(err, "unable to update the variable status")
-		return ctrl.Result{}, err
+		return ctrl_res, err
 	}
 
 	log.Info("Reconciled MariaDB kind", "mariadb", app.Name, "status", app.Status)
 
-	return ctrl.Result{}, nil
+	return ctrl_res, nil
+}
+
+/*
+	--------------------------------------------------------
+	Custom function used to be called in reconciliation loop
+	--------------------------------------------------------
+*/
+func (r *MariaDBReconciler) reconcile_deployment(
+	ctx context.Context,
+	app mariak8gv1alpha1.MariaDB,
+	log logr.Logger,
+) (appsv1.Deployment, error) {
+	deployment, err := k8s.DesiredDeployment(app)
+	// always set the controller reference so that we know which object owns this.
+	if err := ctrl.SetControllerReference(&app, &deployment, r.Scheme); err != nil {
+		log.Error(err, "unable to set controller reference of deployment")
+		return deployment, err
+	}
+	return deployment, err
+}
+
+func (r *MariaDBReconciler) reconcile_service(
+	ctx context.Context,
+	app mariak8gv1alpha1.MariaDB,
+	log logr.Logger,
+) (corev1.Service, error) {
+	srv, err := k8s.DesiredService(app)
+	// always set the controller reference so that we know which object owns this.
+	if err := ctrl.SetControllerReference(&app, &srv, r.Scheme); err != nil {
+		log.Error(err, "unable to set controller reference of service")
+		return srv, err
+	}
+	return srv, err
 }
 
 // SetupWithManager sets up the controller with the Manager.

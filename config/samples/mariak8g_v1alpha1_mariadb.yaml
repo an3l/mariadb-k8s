@@ -7,10 +7,10 @@ spec:
   dataStoragePath: "/tmp/datadir"
   database: "testDB-operator"
   password: "my_cool_secret"
-  rootpwd: "my-secret-pw"
   username: "example-user"
 
   # Optional fields
   replicas: 2
+  #rootpwd: "my-secret-pw"
   imageVersion: "10.6"
   image: "quay.io/mariadb-foundation/mariadb-devel:10.5"

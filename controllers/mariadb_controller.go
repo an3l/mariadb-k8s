@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -67,7 +68,41 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to fetch MariaDB")
 		return ctrl_res, err
 	}
-	// Second call function to reconcile all resources
+
+	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
+
+	// Check if secret exists (one cannot specify plain text rootpwd)
+	var root_secret *corev1.Secret = nil
+	if err := r.Get(ctx, req.NamespacedName, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Name + "-secret",
+			Namespace: app.Namespace,
+		},
+	}); err != nil && errors.IsNotFound(err) {
+		log.Info("Root secret doesn't exist, let me creat it:...")
+		// Create root secret if not exist root password
+		var err error
+		root_secret, err = r.reconcile_root_secret(ctx, app, log)
+		err = r.Client.Create(ctx, root_secret)
+		if err != nil {
+			log.Error(err, " failed to reconcile root secret!")
+			return ctrl_res, err
+		}
+
+		// Secret created successfully - requeue after 5 minutes
+		log.Info("Secret Created successfully, RequeueAfter 5 sec")
+		return ctrl.Result{RequeueAfter: 5}, nil
+	}
+
+	// This part is needed to be outside of reconciliation because of need to edit the secrets
+	if root_secret != nil {
+		err1 := r.Patch(ctx, root_secret, client.Apply, applyOpts...)
+		if err1 != nil {
+			return ctrl_res, err1
+		}
+	}
+
+	// Create the deployment
 	deployment, err := r.reconcile_deployment(ctx, app, log)
 	if err != nil {
 		log.Error(err, " failed to reconcile deployments!")
@@ -80,8 +115,6 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, " failed to reconcile service!")
 		return ctrl_res, err
 	}
-
-	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
 
 	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
 	if err != nil {
@@ -108,6 +141,16 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	Custom function used to be called in reconciliation loop
 	--------------------------------------------------------
 */
+func (r *MariaDBReconciler) reconcile_root_secret(
+	ctx context.Context,
+	app mariak8gv1alpha1.MariaDB,
+	log logr.Logger,
+) (*corev1.Secret, error) {
+	// If not create the secret with password `mysecret`
+	root_secret, err_secret := k8s.CreateRootSecret(&app, "mysecret")
+	return &root_secret, err_secret
+}
+
 func (r *MariaDBReconciler) reconcile_deployment(
 	ctx context.Context,
 	app mariak8gv1alpha1.MariaDB,

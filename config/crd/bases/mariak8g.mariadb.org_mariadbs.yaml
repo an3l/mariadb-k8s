@@ -81,7 +81,8 @@ spec:
                 maximum: 4
                 type: integer
               rootpwd:
-                description: Root user password
+                description: Root user password (if set will be used, else root secret
+                  will be created)
                 type: string
               username:
                 description: Database additional user details (base64 encoded)
@@ -90,7 +91,6 @@ spec:
             - dataStoragePath
             - database
             - password
-            - rootpwd
             - username
             type: object
           status:
@@ -106,6 +106,9 @@ spec:
                 type: integer
               lastMessage:
                 type: string
+              secretSet:
+                format: int32
+                type: integer
               showState:
                 default: NOT STARTED
                 type: string
@@ -113,6 +116,7 @@ spec:
             - dbState
             - desiredReplicas
             - lastMessage
+            - secretSet
             type: object
         type: object
     served: true

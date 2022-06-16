@@ -42,8 +42,19 @@ func DesiredDeployment(database mariak8gv1alpha1.MariaDB) (appsv1.Deployment, er
 							Image: mariaImage,
 							Env: []corev1.EnvVar{
 								{Name: "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD", Value: "0"},
-								// root password should be set from secret - test
-								{Name: "MARIADB_ROOT_PASSWORD", Value: database.Spec.Rootpwd},
+								// ValueFrom cannot be used if Value is non empty
+								{
+									Name:  "MARIADB_ROOT_PASSWORD",
+									Value: database.Spec.Rootpwd,
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: database.Name + "-secret",
+											},
+											Key: "mariadb-root-password",
+										},
+									},
+								},
 								{Name: "MARIADB_USER", Value: database.Spec.Username},
 								{Name: "MARIADB_PASSWORD", Value: database.Spec.Password},
 								{Name: "MARIADB_DATABASE", Value: database.Spec.Database},
@@ -79,4 +90,20 @@ func DesiredService(database mariak8gv1alpha1.MariaDB) (corev1.Service, error) {
 	}
 
 	return svc, nil
+}
+
+func CreateRootSecret(database *mariak8gv1alpha1.MariaDB, secretPassword string) (corev1.Secret, error) {
+	rootSecret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Secret"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      database.Name + "-secret",
+			Namespace: database.Namespace,
+		},
+		Type: "Opaque", // default
+		Data: map[string][]byte{
+			"mariadb-root-password": []byte(secretPassword),
+		},
+	}
+
+	return rootSecret, nil
 }

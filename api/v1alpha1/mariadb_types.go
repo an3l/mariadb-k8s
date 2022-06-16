@@ -43,8 +43,8 @@ type MariaDBSpec struct {
 	// +kubebuilder:validation:Required
 	Database string `json:"database"`
 
-	// Root user password
-	// +kubebuilder:validation:Required
+	// Root user password (if set will be used, else root secret will be created)
+	// +optional
 	Rootpwd string `json:"rootpwd"`
 
 	// Image name with version
@@ -90,6 +90,7 @@ type MariaDBStatus struct {
 	// +kubebuilder:default="NOT STARTED"
 
 	ShowState string `json:"showState"`
+	SecretSet int32  `json:"secretSet"`
 }
 
 //+kubebuilder:object:root=true

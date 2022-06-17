@@ -8,13 +8,25 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func DesiredDeployment(database mariak8gv1alpha1.MariaDB) (appsv1.Deployment, error) {
-	mariaImage := database.Spec.Image // image can be assigned
+const (
+	deployment_name = "-server-deployment"
+	labels_name     = "mariadb"
+	container_name  = "mariadb"
+	secret_suffix   = "-secret"
+	secret_key      = "mariadb-root-password"
+	port_name       = "mariadb-port"
+	service_suffix  = "-server-service"
+	service_name    = "mariadb-service"
+)
+
+func DesiredDeployment(cr mariak8gv1alpha1.MariaDB) (appsv1.Deployment, error) {
+	database := cr.Spec.MariaDB.PodSpec
+	mariaImage := database.Image // image can be assigned
 	if mariaImage == "" {
-		mariaImage = "quay.io/mariadb-foundation/mariadb-devel:" + database.Spec.ImageVersion // get the latest image version
+		mariaImage = "quay.io/mariadb-foundation/mariadb-devel:" + database.ImageVersion // get the latest image version
 	}
 
-	mariaPort := database.Spec.Port
+	mariaPort := database.Port
 	if mariaPort == 0 {
 		mariaPort = 3306
 	}
@@ -23,44 +35,44 @@ func DesiredDeployment(database mariak8gv1alpha1.MariaDB) (appsv1.Deployment, er
 	depl := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{APIVersion: appsv1.SchemeGroupVersion.String(), Kind: "Deployment"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      database.Name + "-server-deployment",
-			Namespace: database.Namespace,
+			Name:      cr.Name + deployment_name,
+			Namespace: cr.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: database.Spec.Replicas, // won't be nil because defaulting
+			Replicas: database.Replicas, // won't be nil because defaulting
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"mariadb": database.Name},
+				MatchLabels: map[string]string{labels_name: cr.Name},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"mariadb": database.Name},
+					Labels: map[string]string{labels_name: cr.Name},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "mariadb",
+							Name:  container_name,
 							Image: mariaImage,
 							Env: []corev1.EnvVar{
 								{Name: "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD", Value: "0"},
 								// ValueFrom cannot be used if Value is non empty
 								{
 									Name:  "MARIADB_ROOT_PASSWORD",
-									Value: database.Spec.Rootpwd,
+									Value: database.Rootpwd,
 									ValueFrom: &corev1.EnvVarSource{
 										SecretKeyRef: &corev1.SecretKeySelector{
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: database.Name + "-secret",
+												Name: cr.Name + secret_suffix,
 											},
-											Key: "mariadb-root-password",
+											Key: secret_key,
 										},
 									},
 								},
-								{Name: "MARIADB_USER", Value: database.Spec.Username},
-								{Name: "MARIADB_PASSWORD", Value: database.Spec.Password},
-								{Name: "MARIADB_DATABASE", Value: database.Spec.Database},
+								{Name: "MARIADB_USER", Value: database.Username},
+								{Name: "MARIADB_PASSWORD", Value: database.Password},
+								{Name: "MARIADB_DATABASE", Value: database.Database},
 							},
 							Ports: []corev1.ContainerPort{
-								{ContainerPort: mariaPort, Name: "mariadb-port", Protocol: "TCP"},
+								{ContainerPort: mariaPort, Name: port_name, Protocol: "TCP"},
 							},
 							//Resources:
 						},
@@ -77,14 +89,14 @@ func DesiredService(database mariak8gv1alpha1.MariaDB) (corev1.Service, error) {
 	svc := corev1.Service{
 		TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      database.Name + "-server-service",
+			Name:      database.Name + service_suffix,
 			Namespace: database.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{
-				{Name: "mariadb-service", Port: database.Spec.Port, Protocol: "TCP", TargetPort: intstr.FromString("mariadb-service")},
+				{Name: service_name, Port: database.Spec.MariaDB.Port, Protocol: "TCP", TargetPort: intstr.FromString(service_name)},
 			},
-			Selector: map[string]string{"mariadb": database.Name},
+			Selector: map[string]string{labels_name: database.Name},
 			Type:     corev1.ServiceTypeClusterIP,
 		},
 	}
@@ -96,12 +108,12 @@ func CreateRootSecret(database *mariak8gv1alpha1.MariaDB, secretPassword string)
 	rootSecret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Secret"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      database.Name + "-secret",
+			Name:      database.Name + secret_suffix,
 			Namespace: database.Namespace,
 		},
 		Type: "Opaque", // default
 		Data: map[string][]byte{
-			"mariadb-root-password": []byte(secretPassword),
+			secret_key: []byte(secretPassword),
 		},
 	}
 

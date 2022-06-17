@@ -25,9 +25,16 @@ import (
 
 // MariaDBSpec defines the desired state of MariaDB
 type MariaDBSpec struct {
+	MariaDB MariaDBType `json:"mariadb,omitempty"`
+}
 
+type MariaDBType struct {
+	PodSpec `json:",inline"`
+}
+
+type PodSpec struct {
 	// +optional
-	// +kubebuilder:default=1
+	// +kubebuilder:default=3
 	// +kubebuilder:validation:Maximum=4
 	Replicas *int32 `json:"replicas"`
 

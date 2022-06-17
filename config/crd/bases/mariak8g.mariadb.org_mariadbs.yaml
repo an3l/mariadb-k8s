@@ -52,46 +52,50 @@ spec:
           spec:
             description: MariaDBSpec defines the desired state of MariaDB
             properties:
-              dataStoragePath:
-                description: Database storage Path
-                type: string
-              dataStorageSize:
-                description: Database storage Size (Ex. 1Gi, 100Mi)
-                type: string
-              database:
-                description: New Database name
-                type: string
-              image:
-                description: Image name with version
-                type: string
-              imageVersion:
-                default: "10.6"
-                description: Image version (latest is 10.6, so let's have it as latest)
-                type: string
-              password:
-                description: Database additional user password (base64 encoded)
-                type: string
-              port:
-                default: 3306
-                format: int32
-                type: integer
-              replicas:
-                default: 1
-                format: int32
-                maximum: 4
-                type: integer
-              rootpwd:
-                description: Root user password (if set will be used, else root secret
-                  will be created)
-                type: string
-              username:
-                description: Database additional user details (base64 encoded)
-                type: string
-            required:
-            - dataStoragePath
-            - database
-            - password
-            - username
+              mariadb:
+                properties:
+                  dataStoragePath:
+                    description: Database storage Path
+                    type: string
+                  dataStorageSize:
+                    description: Database storage Size (Ex. 1Gi, 100Mi)
+                    type: string
+                  database:
+                    description: New Database name
+                    type: string
+                  image:
+                    description: Image name with version
+                    type: string
+                  imageVersion:
+                    default: "10.6"
+                    description: Image version (latest is 10.6, so let's have it as
+                      latest)
+                    type: string
+                  password:
+                    description: Database additional user password (base64 encoded)
+                    type: string
+                  port:
+                    default: 3306
+                    format: int32
+                    type: integer
+                  replicas:
+                    default: 3
+                    format: int32
+                    maximum: 4
+                    type: integer
+                  rootpwd:
+                    description: Root user password (if set will be used, else root
+                      secret will be created)
+                    type: string
+                  username:
+                    description: Database additional user details (base64 encoded)
+                    type: string
+                required:
+                - dataStoragePath
+                - database
+                - password
+                - username
+                type: object
             type: object
           status:
             description: MariaDBStatus defines the observed state of MariaDB

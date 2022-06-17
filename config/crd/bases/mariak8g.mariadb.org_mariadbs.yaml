@@ -106,9 +106,6 @@ spec:
                 type: integer
               lastMessage:
                 type: string
-              secretSet:
-                format: int32
-                type: integer
               showState:
                 default: NOT STARTED
                 type: string
@@ -116,7 +113,6 @@ spec:
             - dbState
             - desiredReplicas
             - lastMessage
-            - secretSet
             type: object
         type: object
     served: true

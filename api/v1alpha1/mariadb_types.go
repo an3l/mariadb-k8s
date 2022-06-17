@@ -90,7 +90,6 @@ type MariaDBStatus struct {
 	// +kubebuilder:default="NOT STARTED"
 
 	ShowState string `json:"showState"`
-	SecretSet int32  `json:"secretSet"`
 }
 
 //+kubebuilder:object:root=true

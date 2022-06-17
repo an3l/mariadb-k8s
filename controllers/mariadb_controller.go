@@ -23,7 +23,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,6 +51,9 @@ type MariaDBReconciler struct {
 //+kubebuilder:rbac:groups=mariak8g.mariadb.org,resources=mariadbs/finalizers,verbs=update
 
 func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	/*
+		----------- SETTING THE DEFAULTS FOR RECONCILIATION -----------
+	*/
 	// Create the object to reconcile
 	var app mariak8gv1alpha1.MariaDB // fetch resource
 	log := r.Log.WithValues("MariaDB: ", req.NamespacedName)
@@ -71,14 +73,17 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("mariadb-controller")}
 
+	/*
+		----------- SETTING THE ROOT SECRET  -----------
+	*/
 	// Check if secret exists (one cannot specify plain text rootpwd)
-	var root_secret *corev1.Secret = nil
-	if err := r.Get(ctx, req.NamespacedName, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      app.Name + "-secret",
-			Namespace: app.Namespace,
-		},
-	}); err != nil && errors.IsNotFound(err) {
+	root_secret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Namespace: req.Namespace,
+		Name:      req.Name + "-secret",
+	}, root_secret)
+	// log.Info("Get()", "error: ", err, "root_secret", *root_secret)
+	if err != nil {
 		log.Info("Root secret doesn't exist, let me creat it:...")
 		// Create root secret if not exist root password
 		var err error
@@ -94,14 +99,9 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{RequeueAfter: 5}, nil
 	}
 
-	// This part is needed to be outside of reconciliation because of need to edit the secrets
-	if root_secret != nil {
-		err1 := r.Patch(ctx, root_secret, client.Apply, applyOpts...)
-		if err1 != nil {
-			return ctrl_res, err1
-		}
-	}
-
+	/*
+		----------- SETTING THE DEPLOYMENT  -----------
+	*/
 	// Create the deployment
 	deployment, err := r.reconcile_deployment(ctx, app, log)
 	if err != nil {
@@ -109,12 +109,19 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl_res, err
 	}
 
+	/*
+		----------- SETTING THE SERVICE  -----------
+	*/
 	svc, err := r.reconcile_service(ctx, app, log)
 	// return if there is an error during service start
 	if err != nil {
 		log.Error(err, " failed to reconcile service!")
 		return ctrl_res, err
 	}
+
+	/*
+		----------- UPDATE INFORMATION IN CLUSTER  -----------
+	*/
 
 	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
 	if err != nil {

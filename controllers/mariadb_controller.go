@@ -30,6 +30,7 @@ import (
 
 	mariak8gv1alpha1 "github.com/mariadb/mariadb.org-tools/mariadb-operator/api/v1alpha1"
 	"github.com/mariadb/mariadb.org-tools/mariadb-operator/pkg/k8s"
+	"github.com/mariadb/mariadb.org-tools/mariadb-operator/pkg/mariadb"
 )
 
 func ignoreNotFound(err error) error {
@@ -100,22 +101,32 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	/*
-		----------- SETTING THE DEPLOYMENT  -----------
+		----------- SETTING THE CONFIGMAP  -----------
 	*/
-	// Create the deployment
-	deployment, err := r.reconcile_deployment(ctx, app, log)
+	cm, err := r.reconcile_configmap(ctx, app, log)
+	// return if there is an error during service start
 	if err != nil {
-		log.Error(err, " failed to reconcile deployments!")
+		log.Error(err, " failed to reconcile headless service!")
 		return ctrl_res, err
 	}
 
 	/*
-		----------- SETTING THE SERVICE  -----------
+		----------- SETTING THE HEADLESS SERVICE  -----------
 	*/
-	svc, err := r.reconcile_service(ctx, app, log)
+	svc, err := r.reconcile_headless_service(ctx, app, log)
 	// return if there is an error during service start
 	if err != nil {
-		log.Error(err, " failed to reconcile service!")
+		log.Error(err, " failed to reconcile headless service!")
+		return ctrl_res, err
+	}
+
+	/*
+		----------- SETTING THE STATEFULSET  -----------
+	*/
+	// Create the deployment
+	mariadb_sts, err := r.reconcile_statefulset(ctx, app, log)
+	if err != nil {
+		log.Error(err, " failed to reconcile statefulset!")
 		return ctrl_res, err
 	}
 
@@ -123,7 +134,12 @@ func (r *MariaDBReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		----------- UPDATE INFORMATION IN CLUSTER  -----------
 	*/
 
-	err = r.Patch(ctx, &deployment, client.Apply, applyOpts...)
+	err = r.Patch(ctx, &cm, client.Apply, applyOpts...)
+	if err != nil {
+		return ctrl_res, err
+	}
+
+	err = r.Patch(ctx, mariadb_sts, client.Apply, applyOpts...)
 	if err != nil {
 		return ctrl_res, err
 	}
@@ -186,11 +202,55 @@ func (r *MariaDBReconciler) reconcile_service(
 	return srv, err
 }
 
+func (r *MariaDBReconciler) reconcile_statefulset(
+	ctx context.Context,
+	app mariak8gv1alpha1.MariaDB,
+	log logr.Logger,
+) (client.Object, error) {
+	mariadb_sts_object := mariadb.StatefulSet(app)
+	// always set the controller reference so that we know which object owns this.
+	if err := ctrl.SetControllerReference(&app, mariadb_sts_object, r.Scheme); err != nil {
+		log.Error(err, "unable to set controller reference of statefulset")
+		return mariadb_sts_object, err
+	}
+	return mariadb_sts_object, nil
+}
+
+func (r *MariaDBReconciler) reconcile_headless_service(
+	ctx context.Context,
+	app mariak8gv1alpha1.MariaDB,
+	log logr.Logger,
+) (corev1.Service, error) {
+	srv, err := mariadb.HeadlessService(app)
+	// always set the controller reference so that we know which object owns this.
+	if err := ctrl.SetControllerReference(&app, &srv, r.Scheme); err != nil {
+		log.Error(err, "unable to set controller reference of headless service")
+		return srv, err
+	}
+	return srv, err
+}
+
+func (r *MariaDBReconciler) reconcile_configmap(
+	ctx context.Context,
+	app mariak8gv1alpha1.MariaDB,
+	log logr.Logger,
+) (corev1.ConfigMap, error) {
+	cm := mariadb.ConfigMap(app)
+	// always set the controller reference so that we know which object owns this.
+	if err := ctrl.SetControllerReference(&app, cm, r.Scheme); err != nil {
+		log.Error(err, "unable to set controller reference of configuration map")
+		return *cm, err
+	}
+	return *cm, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *MariaDBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mariak8gv1alpha1.MariaDB{}).
 		Owns(&corev1.Service{}).
-		Owns(&appsv1.Deployment{}).
+		//Owns(&appsv1.Deployment{}).
+		Owns(&appsv1.StatefulSet{}).
+		Owns(&corev1.ConfigMap{}).
 		Complete(r)
 }

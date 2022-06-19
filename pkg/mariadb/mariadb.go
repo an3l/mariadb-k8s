@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -63,6 +64,7 @@ func ConfigMap(database mariak8gv1alpha1.MariaDB) *corev1.ConfigMap {
 	}
 }
 
+// Private member function
 func volumeClaimTemplates(database mariak8gv1alpha1.MariaDB) []corev1.PersistentVolumeClaim {
 	return []corev1.PersistentVolumeClaim{
 		{
@@ -71,7 +73,7 @@ func volumeClaimTemplates(database mariak8gv1alpha1.MariaDB) []corev1.Persistent
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				// StorageClassName:  {"default"},
-				AccessModes: []corev1.PersistentVolumeAccessMode{"ReadWrite"},
+				AccessModes: []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceMemory: resource.MustParse("300M"),
@@ -82,8 +84,7 @@ func volumeClaimTemplates(database mariak8gv1alpha1.MariaDB) []corev1.Persistent
 	}
 }
 
-// Private member function to interact with statefulset
-func headlessService(database mariak8gv1alpha1.MariaDB) (corev1.Service, error) {
+func HeadlessService(database mariak8gv1alpha1.MariaDB) (corev1.Service, error) {
 	clusterIP := "None"
 	serviceType := corev1.ServiceTypeClusterIP
 
@@ -111,7 +112,7 @@ func headlessService(database mariak8gv1alpha1.MariaDB) (corev1.Service, error) 
 
 }
 
-func StatefulSet(database mariak8gv1alpha1.MariaDB) *appsv1.StatefulSet {
+func StatefulSet(database mariak8gv1alpha1.MariaDB) client.Object {
 
 	spec := database.Spec.MariaDB.PodSpec
 	replicas := spec.Replicas

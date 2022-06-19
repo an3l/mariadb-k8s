@@ -22,9 +22,9 @@ const (
 	pvcName             = dataDirName
 	dataDirMountPath    = "/var/lib/mysql"
 	configVolumeName    = "mariadb-config"
-	configMountPath     = "/etc/mysql/config.d"
+	configMountPath     = "/etc/mysql/conf.d"
 	configMapName       = "mariadb-configmap"
-	configMapVolumeName = "mariadb-config-map"
+	configMapVolumeName = configMapName
 	configMapMountPath  = "/mnt/config-map"
 	initVolumeName      = "initdb"
 	initMountPath       = "/docker-entrypoint-initdb.d"
@@ -59,6 +59,14 @@ func ConfigMap(database mariak8gv1alpha1.MariaDB) *corev1.ConfigMap {
 			CREATE USER 'repluser'@'%' IDENTIFIED BY 'replsecret';
 			GRANT REPLICATION SLAVE ON *.* TO 'repluser'@'%';
 			CREATE DATABASE primary_db;
+			`,
+			"replinit.sql": `
+			CHANGE MASTER TO
+  		MASTER_HOST='mariadb-sample-0.mariadb-service.default.svc.cluster.local',
+  		MASTER_USER='repluser',
+  		MASTER_PASSWORD='replsecret',
+  		MASTER_PORT=3306,
+  		MASTER_CONNECT_RETRY=10;
 			`,
 		},
 	}
@@ -179,22 +187,23 @@ func StatefulSet(database mariak8gv1alpha1.MariaDB) client.Object {
 							// TODO: find a way to move the commands to the script
 							Command: []string{"/bin/bash",
 								"-c",
-								"set -ex",
-								// Check config map to directory that already exists (but must be used as a volume for main container)
-								"ls /mnt/config-map",
-								// statefulset has sticky identity, number should be last
-								"[[ `hostname` =~ -([0-9]+)$ ]] || exit 1",
-								"ordinal=${BASH_REMATCH[1]}",
-								// Copy appropriate conf.d files from config-map to emptyDir.
-								`if [[ $ordinal -eq 0 ]]; then
-							  cp /mnt/config-map/primary.cnf /etc/mysql/conf.d/server-id.cnf
-							  # Create the users needed for replication on primary
-							  cp /mnt/config-map/primary.sql /docker-entrypoint-initdb.d
-							else
-							  cp /mnt/config-map/replica.cnf /etc/mysql/conf.d/server-id.cnf
-							  # We cannot know the IP of the host, it will be created
-							  # cp /mnt/config-map/secondary.sql /docker-entrypoint-initdb.d
-							fi
+								`set -ex;
+								echo 'Starting init';
+								# Check config map to directory that already exists (but must be used as a volume for main container)
+								ls /mnt/config-map;
+								# Statefulset has sticky identity, number should be last
+								[[ $(hostname) =~ -([0-9]+)$ ]] || exit 1;
+								ordinal=${BASH_REMATCH[1]};
+								# Copy appropriate conf.d files from config-map to emptyDir.
+								if [[ $ordinal -eq 0 ]]; then
+							    cp /mnt/config-map/primary.cnf /etc/mysql/conf.d/server-id.cnf
+							    # Create the users needed for replication on primary
+							    cp /mnt/config-map/primary.sql /docker-entrypoint-initdb.d
+							  else
+							    cp /mnt/config-map/replica.cnf /etc/mysql/conf.d/server-id.cnf
+							    # We cannot know the IP of the host, it will be created
+							    cp /mnt/config-map/replinit.sql /docker-entrypoint-initdb.d
+							  fi
 							# Add an offset to avoid reserved server-id=0 value.
 							echo server-id=$((3000 + $ordinal)) >> etc/mysql/conf.d/server-id.cnf
 							# cp /mnt/config-map/mariadb.cnf /etc/mysql/conf.d
@@ -313,18 +322,24 @@ func mariadbdContainer(database mariak8gv1alpha1.MariaDB) []corev1.Container {
 						},
 					},
 				},
-				{
-					Name:  "MARIADB_USER",
-					Value: spec.Username,
-				},
-				{
-					Name:  "MARIADB_PASSWORD",
-					Value: spec.Password,
-				},
-				{
-					Name:  "MARIADB_DATABASE",
-					Value: spec.Database,
-				},
+				/*
+					// We shouldn't create the user since it will be created on replica
+					// SInce is created on replica, it will result in error message 1396
+					// trying to create the user from binlog, will stop the SQL thread and stop
+					// execution
+					{
+						Name:  "MARIADB_USER",
+						Value: spec.Username,
+					},
+					{
+						Name:  "MARIADB_PASSWORD",
+						Value: spec.Password,
+					},
+					{
+						Name:  "MARIADB_DATABASE",
+						Value: spec.Database,
+					},
+				*/
 				{
 					Name:  "MYSQL_INITDB_SKIP_TZINFO",
 					Value: "yes",
@@ -364,7 +379,7 @@ func mariadbdContainer(database mariak8gv1alpha1.MariaDB) []corev1.Container {
 			LivenessProbe: &corev1.Probe{
 				Handler: corev1.Handler{
 					Exec: &corev1.ExecAction{
-						Command: []string{"/usr/local/bin/healthcheck.sh --su=mysql --connect --innodb_initialized"},
+						Command: []string{"/usr/local/bin/healthcheck.sh", "--su=mysql", "--connect", "--innodb_initialized"},
 					},
 				},
 				InitialDelaySeconds: 3,

@@ -92,9 +92,6 @@ spec:
                     type: string
                 required:
                 - dataStoragePath
-                - database
-                - password
-                - username
                 type: object
             type: object
           status:

@@ -39,15 +39,15 @@ type PodSpec struct {
 	Replicas *int32 `json:"replicas"`
 
 	// Database additional user details (base64 encoded)
-	// +kubebuilder:validation:Required
+	// +optional
 	Username string `json:"username"`
 
 	// Database additional user password (base64 encoded)
-	// +kubebuilder:validation:Required
+	// +optional
 	Password string `json:"password"`
 
 	// New Database name
-	// +kubebuilder:validation:Required
+	// +optional
 	Database string `json:"database"`
 
 	// Root user password (if set will be used, else root secret will be created)

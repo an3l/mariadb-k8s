@@ -6,12 +6,12 @@ spec:
   mariadb:
     # Add required fields:
     dataStoragePath: "/tmp/datadir"
-    database: "testDB-operator"
-    password: "my_cool_secret"
-    username: "example-user"
+    #database: "testDB-operator"
+    #password: "my_cool_secret"
+    #username: "example-user"
 
     # Optional fields
     # replicas: 2
     #rootpwd: "my-secret-pw"
-    imageVersion: "10.6"
+    imageVersion: "10.7"
     image: "quay.io/mariadb-foundation/mariadb-devel:10.5"

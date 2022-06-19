@@ -76,7 +76,8 @@ func volumeClaimTemplates(database mariak8gv1alpha1.MariaDB) []corev1.Persistent
 				AccessModes: []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("300M"),
+						//corev1.ResourceMemory: resource.MustParse("300M"),
+						corev1.ResourceStorage: resource.MustParse("300M"),
 					},
 				},
 			},

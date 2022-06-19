@@ -53,7 +53,10 @@ func DesiredDeployment(cr mariak8gv1alpha1.MariaDB) (appsv1.Deployment, error) {
 							Name:  container_name,
 							Image: mariaImage,
 							Env: []corev1.EnvVar{
-								{Name: "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD", Value: "0"},
+								{
+									Name:  "MARIADB_ALLOW_EMPTY_ROOT_PASSWORD",
+									Value: "0",
+								},
 								// ValueFrom cannot be used if Value is non empty
 								{
 									Name:  "MARIADB_ROOT_PASSWORD",
@@ -89,7 +92,7 @@ func DesiredService(database mariak8gv1alpha1.MariaDB) (corev1.Service, error) {
 	svc := corev1.Service{
 		TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      database.Name + service_suffix,
+			Name:      service_name,
 			Namespace: database.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
